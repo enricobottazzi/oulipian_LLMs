@@ -20,7 +20,7 @@ class LipogramConstraint(LogitsProcessor):
         return scores
 
 class SolitaireConstraint(LogitsProcessor):
-    "Forbid identical consecutive letters within a word (intra-word only). Stateless."
+    "Forbid identical consecutive letters within a word (intra-word only). Stateful."
 
     def __init__(self, tokenizer):
         az = set(string.ascii_lowercase)
