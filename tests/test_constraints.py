@@ -13,7 +13,6 @@ PROMPTS = [
     "The fastest way to learn a new language is",
 ]
 
-
 @pytest.fixture(scope="module")
 def lm():
     tok = AutoTokenizer.from_pretrained(MODEL)
@@ -49,6 +48,5 @@ def test_univocal(lm, vowel):
 
 def test_solitaire(lm):
     answer = _generate(lm, SolitaireConstraint(lm[1]))
-    print(repr(answer))
     forbidden = {c + c for c in string.ascii_lowercase}
     assert not any(f in w for w in _words(answer) for f in forbidden), f"answer={answer!r}"
