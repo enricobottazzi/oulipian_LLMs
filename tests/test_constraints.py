@@ -46,36 +46,36 @@ def _words(s: str) -> list[str]:
     # beware: accented letters (cafés) get split as if é were a separator → ['caf', 's'].
     return re.split(r"[^a-z]+", s.lower())
 
-# @pytest.mark.parametrize("letter", ["e", "a", "T"])
-# def test_lipogram(lm, letter):
-#     answer, _ = _generate(lm, LipogramConstraint(letter, lm[1]))
-#     forbidden = {letter.lower()}
-#     assert not any(f in _letters(answer) for f in forbidden), f"answer={answer!r}"
+@pytest.mark.parametrize("letter", ["e", "a", "T"])
+def test_lipogram(lm, letter):
+    answer, _ = _generate(lm, LipogramConstraint(letter, lm[1]))
+    forbidden = {letter.lower()}
+    assert not any(f in _letters(answer) for f in forbidden), f"answer={answer!r}"
 
-# @pytest.mark.parametrize("vowel", ["a", "e", "A"])
-# def test_univocal(lm, vowel):
-#     answer, _ = _generate(lm, UnivocalConstraint(vowel, lm[1]))
-#     forbidden = set("aeiou") - {vowel.lower()}
-#     assert not any(f in _letters(answer) for f in forbidden), f"answer={answer!r}"
+@pytest.mark.parametrize("vowel", ["a", "e", "A"])
+def test_univocal(lm, vowel):
+    answer, _ = _generate(lm, UnivocalConstraint(vowel, lm[1]))
+    forbidden = set("aeiou") - {vowel.lower()}
+    assert not any(f in _letters(answer) for f in forbidden), f"answer={answer!r}"
 
-# def test_solitaire(lm):
-#     answer, _ = _generate(lm, SolitaireConstraint(lm[1]))
-#     forbidden = {c + c for c in string.ascii_lowercase}
-#     assert not any(f in w for w in _words(answer) for f in forbidden), f"answer={answer!r}"
+def test_solitaire(lm):
+    answer, _ = _generate(lm, SolitaireConstraint(lm[1]))
+    forbidden = {c + c for c in string.ascii_lowercase}
+    assert not any(f in w for w in _words(answer) for f in forbidden), f"answer={answer!r}"
 
-# @pytest.mark.parametrize("ban", ["odd", "even"])
-# def test_parity(lm, ban):
-#     tok = lm[1]
-#     _, ids = _generate(lm, ParityConstraint(ban, tok))
-#     specials = set(tok.all_special_ids)
-#     r = 1 if ban == "odd" else 0
-#     assert not any(t % 2 == r and t not in specials for t in ids), f"ids={ids!r}"
+@pytest.mark.parametrize("ban", ["odd", "even"])
+def test_parity(lm, ban):
+    tok = lm[1]
+    _, ids = _generate(lm, ParityConstraint(ban, tok))
+    specials = set(tok.all_special_ids)
+    r = 1 if ban == "odd" else 0
+    assert not any(t % 2 == r and t not in specials for t in ids), f"ids={ids!r}"
 
-# @pytest.mark.parametrize("bits,stride", [([1, 0, 1, 1, 0], 3), ([0, 1, 0], 5)])
-# def test_stego(lm, bits, stride):
-#     _, ids = _generate(lm, StegoConstraint(bits, stride, lm[1]))
-#     recovered = decode_stego(ids, stride, len(bits))
-#     assert recovered == bits[:len(recovered)] and len(recovered) == len(bits), f"ids={ids!r} recovered={recovered!r}"
+@pytest.mark.parametrize("bits,stride", [([1, 0, 1, 1, 0], 3), ([0, 1, 0], 5)])
+def test_stego(lm, bits, stride):
+    _, ids = _generate(lm, StegoConstraint(bits, stride, lm[1]))
+    recovered = decode_stego(ids, stride, len(bits))
+    assert recovered == bits[:len(recovered)] and len(recovered) == len(bits), f"ids={ids!r} recovered={recovered!r}"
 
 def test_pillish(lm):
     answer, _ = _generate(lm, PillishConstraint(lm[1]))
@@ -85,11 +85,11 @@ def test_pillish(lm):
     actual = [len(w) for w in words]
     assert actual == expected, f"answer={answer!r} actual={actual} expected={expected}"
 
-# @pytest.mark.parametrize("target", ["helloworld", "cake"])
-# def test_acrostic(lm, target):
-#     answer, _ = _generate(lm, AcrosticConstraint(target, lm[1]))
-#     raw_lines = answer.splitlines() # handles variants of \n like \r\n and \v
-#     non_empty_lines = [l for l in raw_lines[1:] if l.strip()] # skip the first line (continuation as it might be the continuation of the prompt)
-#     initials = "".join(_letters(l)[:1] for l in non_empty_lines) # build a string of the first letters of each non-empty line
-#     expected_prefix = target[:len(initials)]
-#     assert initials == expected_prefix, f"answer={answer!r}"
+@pytest.mark.parametrize("target", ["helloworld", "cake"])
+def test_acrostic(lm, target):
+    answer, _ = _generate(lm, AcrosticConstraint(target, lm[1]))
+    raw_lines = answer.splitlines() # handles variants of \n like \r\n and \v
+    non_empty_lines = [l for l in raw_lines[1:] if l.strip()] # skip the first line (continuation as it might be the continuation of the prompt)
+    initials = "".join(_letters(l)[:1] for l in non_empty_lines) # build a string of the first letters of each non-empty line
+    expected_prefix = target[:len(initials)]
+    assert initials == expected_prefix, f"answer={answer!r}"
