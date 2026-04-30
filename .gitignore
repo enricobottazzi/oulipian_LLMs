@@ -14,3 +14,4 @@ build/
 .env
 .idea/
 .vscode/
+scratchpad.py

@@ -3,7 +3,7 @@ import re
 import string
 import pytest
 from transformers import AutoModelForCausalLM, AutoTokenizer, LogitsProcessorList
-from constraints import LipogramConstraint, UnivocalConstraint
+from constraints import LipogramConstraint, UnivocalConstraint, SolitaireConstraint, AcrosticConstraint
 
 MODELS = [
     "HuggingFaceTB/SmolLM2-135M",   # SmolLM BPE
@@ -37,9 +37,11 @@ def _letters(s: str) -> str:
     # re.sub(pattern, replacement, string) — finds every match of pattern in string and replaces it with replacement
     return re.sub(r"[^a-z]", "", s.lower()) 
 
-# def _words(s: str) -> list[str]:
-#     "Lowercase and split into maximal a-z runs (any non-letter is a word separator)."
-#     return re.split(r"[^a-z]+", s.lower())
+def _words(s: str) -> list[str]:
+    "Lowercase and split into maximal a-z runs (any non-letter is a word separator)."
+    # re.split(pattern, string) — splits string by the occurrences of pattern (anything that is not a-z)
+    # beware: accented letters (cafés) get split as if é were a separator → ['caf', 's'].
+    return re.split(r"[^a-z]+", s.lower())
 
 @pytest.mark.parametrize("letter", ["e", "a", "T"])
 def test_lipogram(lm, letter):
@@ -53,7 +55,16 @@ def test_univocal(lm, vowel):
     forbidden = set("aeiou") - {vowel.lower()}
     assert not any(f in _letters(answer) for f in forbidden), f"answer={answer!r}"
 
-# def test_solitaire(lm):
-#     answer = _generate(lm, SolitaireConstraint(lm[1]))
-#     forbidden = {c + c for c in string.ascii_lowercase}
-#     assert not any(f in w for w in _words(answer) for f in forbidden), f"answer={answer!r}"
+def test_solitaire(lm):
+    answer = _generate(lm, SolitaireConstraint(lm[1]))
+    forbidden = {c + c for c in string.ascii_lowercase}
+    assert not any(f in w for w in _words(answer) for f in forbidden), f"answer={answer!r}"
+
+@pytest.mark.parametrize("target", ["helloworld", "cake"])
+def test_acrostic(lm, target):
+    answer = _generate(lm, AcrosticConstraint(target, lm[1]))
+    raw_lines = answer.splitlines() # handles variants of \n like \r\n and \v
+    non_empty_lines = [l for l in raw_lines[1:] if l.strip()] # skip the first line (continuation as it might be the continuation of the prompt)
+    initials = "".join(_letters(l)[:1] for l in non_empty_lines) # build a string of the first letters of each non-empty line
+    expected_prefix = target[:len(initials)]
+    assert initials == expected_prefix, f"answer={answer!r}"
