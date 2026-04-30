@@ -55,6 +55,18 @@ class UnivocalConstraint(LogitsProcessor):
         scores[:, self.banned_token_ids] = float("-inf")
         return scores
 
+class ParityConstraint(LogitsProcessor):
+    "Ban odd or even token IDs (special tokens preserved). Stateless."
+    def __init__(self, ban: str, tokenizer):
+        assert ban in ("odd", "even"), "ban must be 'odd' or 'even'"
+        specials = set(tokenizer.all_special_ids)
+        r = 1 if ban == "odd" else 0
+        self.banned_token_ids = [i for i in range(tokenizer.vocab_size) if i % 2 == r and i not in specials]
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        scores[:, self.banned_token_ids] = float("-inf")
+        return scores
+
 class AcrosticConstraint(LogitsProcessor):
     "Force the first a-z letter of each generated line to spell out target. Stateful."
 
