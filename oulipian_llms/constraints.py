@@ -2,7 +2,7 @@ import string
 from collections import defaultdict
 import torch
 from transformers import LogitsProcessor
-from utils import PI_DIGITS, PRISONER_CONSTRAINT_BANNED_LETTERS, SNOWBALL_DIGITS
+from .utils import PI_DIGITS, PRISONER_CONSTRAINT_BANNED_LETTERS, SNOWBALL_DIGITS
 
 # input_ids: tensor of shape (1, sequence_length) — batch_size is required to be 1
 # scores: tensor of shape (1, vocab_size)

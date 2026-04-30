@@ -3,8 +3,8 @@ import re
 import string
 import pytest
 from transformers import AutoModelForCausalLM, AutoTokenizer, LogitsProcessorList
-from constraints import LipogramConstraint, UnivocalConstraint, SolitaireConstraint, AcrosticConstraint, ParityConstraint, StegoConstraint, PillishConstraint, PrisonerConstraint, SnowballConstraint
-from utils import decode_stego, PI_DIGITS, PRISONER_CONSTRAINT_BANNED_LETTERS, SNOWBALL_DIGITS
+from oulipian_llms import LipogramConstraint, UnivocalConstraint, SolitaireConstraint, AcrosticConstraint, ParityConstraint, StegoConstraint, PillishConstraint, PrisonerConstraint, SnowballConstraint
+from oulipian_llms import decode_stego, PI_DIGITS, PRISONER_CONSTRAINT_BANNED_LETTERS, SNOWBALL_DIGITS
 
 MODELS = [
     "HuggingFaceTB/SmolLM2-135M",    # SmolLM BPE
