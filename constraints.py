@@ -2,6 +2,7 @@ import string
 from collections import defaultdict
 import torch
 from transformers import LogitsProcessor
+from utils import PI_DIGITS
 
 # input_ids: tensor of shape (batch_size, sequence_length)
 # scores: tensor of shape (batch_size, vocab_size)
@@ -118,4 +119,47 @@ class AcrosticConstraint(LogitsProcessor):
             mask = torch.ones_like(scores[b], dtype=torch.bool) # create a mask of all tokens
             mask[allowed] = False
             scores[b, mask] = float("-inf") # ban the tokens that are not the allowed ones
+        return scores
+
+class PillishConstraint(LogitsProcessor):
+    "Force successive words to have lengths matching π digits (0 → 10). Stateful, single-batch."
+
+    def __init__(self, tokenizer):
+        az = set(string.ascii_letters)
+        decoded = [tokenizer.decode([t]) for t in range(tokenizer.vocab_size)]
+        specials = set(tokenizer.all_special_ids)
+        space_ids = [i for i, s in enumerate(decoded) if s == " "] # space token id
+        assert len(space_ids) == 1, "tokenizer must have exactly one ' ' token"
+        self.space_id = space_ids[0]
+        self.letter_ids = defaultdict(list) # length L -> token ids of pure-letter tokens of that length
+        for i, s in enumerate(decoded): 
+            if s and 1 <= len(s) <= 10 and all(c in az for c in s):
+                self.letter_ids[len(s)].append(i)
+        # ban everything that is not part of space.id, letter_ids, or specials
+        keep = {self.space_id} | {i for ids in self.letter_ids.values() for i in ids} | specials
+        self.permaban = [i for i in range(tokenizer.vocab_size) if i not in keep]
+        self.decoded = decoded
+        self.k = 0      # next π-digit index
+        self.rem = -1   # -1 sentinel = first call (no last gen token to inspect); else letters left in current word
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        if self.rem < 0:
+            self.rem = 0 # first call: force a leading space (rem == 0 ⇒ only space allowed)
+        else:
+            last = input_ids[0, -1].item()
+            if last == self.space_id: 
+                if self.k >= len(PI_DIGITS): return scores # payload exhausted
+                d = int(PI_DIGITS[self.k])
+                self.rem = 10 if d == 0 else d
+                self.k += 1
+            else:
+                self.rem -= len(self.decoded[last])
+        scores[:, self.permaban] = float("-inf")
+        if self.rem == 0:
+            allow = [self.space_id]
+        else:
+            allow = [t for L in range(1, self.rem + 1) for t in self.letter_ids[L]]
+        mask = torch.ones_like(scores[0], dtype=torch.bool)
+        mask[allow] = False
+        scores[:, mask] = float("-inf")
         return scores
