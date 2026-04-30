@@ -3,7 +3,8 @@ import re
 import string
 import pytest
 from transformers import AutoModelForCausalLM, AutoTokenizer, LogitsProcessorList
-from constraints import LipogramConstraint, UnivocalConstraint, SolitaireConstraint, AcrosticConstraint, ParityConstraint
+from constraints import LipogramConstraint, UnivocalConstraint, SolitaireConstraint, AcrosticConstraint, ParityConstraint, StegoConstraint
+from utils import decode_stego
 
 MODELS = [
     "HuggingFaceTB/SmolLM2-135M",   # SmolLM BPE
@@ -69,6 +70,12 @@ def test_parity(lm, ban):
     specials = set(tok.all_special_ids)
     r = 1 if ban == "odd" else 0
     assert not any(t % 2 == r and t not in specials for t in ids), f"ids={ids!r}"
+
+@pytest.mark.parametrize("bits,stride", [([1, 0, 1, 1, 0], 3), ([0, 1, 0], 5)])
+def test_stego(lm, bits, stride):
+    _, ids = _generate(lm, StegoConstraint(bits, stride, lm[1]))
+    recovered = decode_stego(ids, stride, len(bits))
+    assert recovered == bits[:len(recovered)] and len(recovered) == len(bits), f"ids={ids!r} recovered={recovered!r}"
 
 @pytest.mark.parametrize("target", ["helloworld", "cake"])
 def test_acrostic(lm, target):

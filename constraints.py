@@ -67,6 +67,28 @@ class ParityConstraint(LogitsProcessor):
         scores[:, self.banned_token_ids] = float("-inf")
         return scores
 
+class StegoConstraint(LogitsProcessor):
+    "Encode a covert message: every `stride`-th generated token id has parity equal to the next bit (0=even id, 1=odd id). Stateful."
+
+    def __init__(self, bits: list[int], stride: int, tokenizer):
+        assert stride >= 1 and all(b in (0, 1) for b in bits), "stride>=1 and bits in {0,1}"
+        self.bits, self.stride = bits, stride
+        self.ban_if_bit = { # bit b -> token ids to ban (those with parity != b)
+            0: [i for i in range(tokenizer.vocab_size) if i % 2 == 1],
+            1: [i for i in range(tokenizer.vocab_size) if i % 2 == 0],
+        }
+        self._prompt_len = None # captured lazily on first call
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        if self._prompt_len is None: self._prompt_len = input_ids.shape[1]
+        pos = input_ids.shape[1] - self._prompt_len + 1 # position of the next token to be generated
+        if pos % self.stride != 0: return scores # not a target position
+        idx = pos // self.stride - 1 # which bit
+        if idx >= len(self.bits): return scores # payload exhausted
+        scores[:, self.ban_if_bit[self.bits[idx]]] = float("-inf")
+        return scores
+
+
 class AcrosticConstraint(LogitsProcessor):
     "Force the first a-z letter of each generated line to spell out target. Stateful."
 
