@@ -2,6 +2,8 @@
 
 Oulipian generation constraints as HuggingFace `LogitsProcessor`s.
 
+Run on google colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1TFs2evFv6uol_0ryGNK0jvIoCUPf_yy5?usp=sharing)
+
 ## Install
 
 ```bash
