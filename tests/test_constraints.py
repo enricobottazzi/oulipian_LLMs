@@ -2,6 +2,7 @@ import random
 import re
 import string
 import pytest
+import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, LogitsProcessorList
 from oulipian_llms import LipogramConstraint, UnivocalConstraint, SolitaireConstraint, AcrosticConstraint, ParityConstraint, StegoConstraint, PillishConstraint, PrisonerConstraint, SnowballConstraint
 from oulipian_llms import decode_stego, PI_DIGITS, PRISONER_CONSTRAINT_BANNED_LETTERS, SNOWBALL_DIGITS
@@ -29,11 +30,13 @@ def lm(request):
 def _generate(lm, constraint):
     "Returns (decoded_text, new_token_ids)."
     model, tok = lm
+    random.seed(0); torch.manual_seed(0)
     prompt = random.choice(PROMPTS)
     inputs = tok([prompt], return_tensors="pt").to(model.device)
-    out = model.generate(**inputs, max_new_tokens=40, logits_processor=LogitsProcessorList([constraint]))
+    out = model.generate(**inputs, max_new_tokens=40, do_sample=True, top_p=0.95,
+                        logits_processor=LogitsProcessorList([constraint]))
     new_ids = out[0][inputs["input_ids"].shape[1]:].tolist()
-    return tok.decode(new_ids), new_ids
+    return tok.decode(new_ids, skip_special_tokens=True), new_ids
 
 def _letters(s: str) -> str:
     "Lowercase and strip everything except a-z"
