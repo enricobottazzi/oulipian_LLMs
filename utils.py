@@ -1,3 +1,7 @@
+PRISONER_CONSTRAINT_BANNED_LETTERS = "bdfghjklpqty" # ascenders + descenders
+
+SNOWBALL_DIGITS = "12345678987654321" * 100 # rising-falling snowball: 1..9..1, repeated
+
 def decode_stego(new_ids: list[int], stride: int, n_bits: int) -> list[int]:
     "Recover bits from generated token ids assuming the same `stride`. Returns up to n_bits."
     return [new_ids[i] & 1 for i in range(stride - 1, len(new_ids), stride)][:n_bits]

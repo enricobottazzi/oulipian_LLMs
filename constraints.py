@@ -2,7 +2,7 @@ import string
 from collections import defaultdict
 import torch
 from transformers import LogitsProcessor
-from utils import PI_DIGITS
+from utils import PI_DIGITS, PRISONER_CONSTRAINT_BANNED_LETTERS, SNOWBALL_DIGITS
 
 # input_ids: tensor of shape (1, sequence_length) — batch_size is required to be 1
 # scores: tensor of shape (1, vocab_size)
@@ -59,6 +59,17 @@ class UnivocalConstraint(LogitsProcessor):
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
         _assert_b1(scores)
         scores[0, self.banned_token_ids] = float("-inf")
+        return scores
+
+class PrisonerConstraint(LogitsProcessor):
+    "Forbid letters with ascenders (b,d,f,h,k,l,t) and descenders (g,j,p,q,y). Composes LipogramConstraint."
+
+    def __init__(self, tokenizer):
+        self.lipograms = [LipogramConstraint(c, tokenizer) for c in PRISONER_CONSTRAINT_BANNED_LETTERS]
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        _assert_b1(scores)
+        for lp in self.lipograms: scores = lp(input_ids, scores)
         return scores
 
 class ParityConstraint(LogitsProcessor):
@@ -129,10 +140,12 @@ class AcrosticConstraint(LogitsProcessor):
         scores[0, mask] = float("-inf") # ban the tokens that are not the allowed ones
         return scores
 
-class PillishConstraint(LogitsProcessor):
-    "Force successive words to have lengths matching π digits (0 → 10)"
+class DigitWordLengthConstraint(LogitsProcessor):
+    "Force successive words to have lengths matching the given digit sequence (0 → 10)"
 
-    def __init__(self, tokenizer):
+    def __init__(self, digits: str, tokenizer):
+        assert digits and all(c in string.digits for c in digits), "digits must be a non-empty string of 0-9"
+        self.digits = digits
         az = set(string.ascii_letters)
         decoded = [tokenizer.decode([t]) for t in range(tokenizer.vocab_size)]
         specials = set(tokenizer.all_special_ids)
@@ -140,14 +153,14 @@ class PillishConstraint(LogitsProcessor):
         assert len(space_ids) == 1, "tokenizer must have exactly one ' ' token"
         self.space_id = space_ids[0]
         self.letter_ids = defaultdict(list) # length L -> token ids of pure-letter tokens of that length
-        for i, s in enumerate(decoded): 
+        for i, s in enumerate(decoded):
             if s and 1 <= len(s) <= 10 and all(c in az for c in s):
                 self.letter_ids[len(s)].append(i)
         # ban everything that is not part of space.id, letter_ids, or specials
         keep = {self.space_id} | {i for ids in self.letter_ids.values() for i in ids} | specials
         self.permaban = [i for i in range(tokenizer.vocab_size) if i not in keep]
         self.decoded = decoded
-        self.k = 0      # next π-digit index
+        self.k = 0      # next digit index
         self.rem = -1   # -1 sentinel = first call (no last gen token to inspect); else letters left in current word
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
@@ -156,9 +169,9 @@ class PillishConstraint(LogitsProcessor):
             self.rem = 0 # first call: force a leading space (rem == 0 ⇒ only space allowed)
         else:
             last = input_ids[0, -1].item()
-            if last == self.space_id: 
-                if self.k >= len(PI_DIGITS): return scores # payload exhausted
-                d = int(PI_DIGITS[self.k])
+            if last == self.space_id:
+                if self.k >= len(self.digits): return scores # payload exhausted
+                d = int(self.digits[self.k])
                 self.rem = 10 if d == 0 else d
                 self.k += 1
             else:
@@ -172,3 +185,15 @@ class PillishConstraint(LogitsProcessor):
         mask[allow] = False
         scores[0, mask] = float("-inf")
         return scores
+
+class PillishConstraint(DigitWordLengthConstraint):
+    "Force successive words to have lengths matching π digits (0 → 10)"
+
+    def __init__(self, tokenizer):
+        super().__init__(PI_DIGITS, tokenizer)
+
+class SnowballConstraint(DigitWordLengthConstraint):
+    "Force successive words to follow a rising-falling snowball: 1..9..1"
+
+    def __init__(self, tokenizer):
+        super().__init__(SNOWBALL_DIGITS, tokenizer)

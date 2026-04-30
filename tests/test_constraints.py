@@ -3,8 +3,8 @@ import re
 import string
 import pytest
 from transformers import AutoModelForCausalLM, AutoTokenizer, LogitsProcessorList
-from constraints import LipogramConstraint, UnivocalConstraint, SolitaireConstraint, AcrosticConstraint, ParityConstraint, StegoConstraint, PillishConstraint
-from utils import decode_stego, PI_DIGITS
+from constraints import LipogramConstraint, UnivocalConstraint, SolitaireConstraint, AcrosticConstraint, ParityConstraint, StegoConstraint, PillishConstraint, PrisonerConstraint, SnowballConstraint
+from utils import decode_stego, PI_DIGITS, PRISONER_CONSTRAINT_BANNED_LETTERS, SNOWBALL_DIGITS
 
 MODELS = [
     "HuggingFaceTB/SmolLM2-135M",    # SmolLM BPE
@@ -58,6 +58,11 @@ def test_univocal(lm, vowel):
     forbidden = set("aeiou") - {vowel.lower()}
     assert not any(f in _letters(answer) for f in forbidden), f"answer={answer!r}"
 
+def test_prisoner(lm):
+    answer, _ = _generate(lm, PrisonerConstraint(lm[1]))
+    forbidden = set(PRISONER_CONSTRAINT_BANNED_LETTERS)
+    assert not any(f in _letters(answer) for f in forbidden), f"answer={answer!r}"
+
 def test_solitaire(lm):
     answer, _ = _generate(lm, SolitaireConstraint(lm[1]))
     forbidden = {c + c for c in string.ascii_lowercase}
@@ -82,6 +87,14 @@ def test_pillish(lm):
     words = [w for w in _words(answer) if w]
     if not answer.endswith(" "): words = words[:-1] # drop trailing partial word (max_new_tokens cutoff)
     expected = [10 if d == "0" else int(d) for d in PI_DIGITS[:len(words)]]
+    actual = [len(w) for w in words]
+    assert actual == expected, f"answer={answer!r} actual={actual} expected={expected}"
+
+def test_snowball(lm):
+    answer, _ = _generate(lm, SnowballConstraint(lm[1]))
+    words = [w for w in _words(answer) if w]
+    if not answer.endswith(" "): words = words[:-1] # drop trailing partial word (max_new_tokens cutoff)
+    expected = [10 if d == "0" else int(d) for d in SNOWBALL_DIGITS[:len(words)]]
     actual = [len(w) for w in words]
     assert actual == expected, f"answer={answer!r} actual={actual} expected={expected}"
 
